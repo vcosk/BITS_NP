@@ -13,12 +13,13 @@ int main(int argc, char const *argv[]) {
     // execlp(argv[1], argv[1], *(argv+2), (char *)0);
 
     if(argc > 2) {
-      char *params[argc - 2];
+      char *params[10];
       int index;
-      for(index=0; index<argc - 2; index++) {
+      for(index=0; index<(argc - 2); index++) {
+        params[index] = (char *)malloc(strlen(argv[index+2])+1);
         strcpy(params[index], argv[index+2]);
+        // printf("%s\n", params[index]);
       }
-      printf("HELLO\n");
       execvp(argv[1], params);
     }
   }
