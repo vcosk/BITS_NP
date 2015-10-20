@@ -1,46 +1,23 @@
-# Makefile to build all programs in all subdirectories
-#
-# DIRS is a list of all subdirectories containing makefiles
-# (The library directory is first so that the library gets built first)
-#
+include ../Makefile.inc
 
-DIRS = 	lib \
-    	acl altio \
-	cap \
-	daemons dirs_links \
-	filebuff fileio filelock files filesys getopt \
-	inotify \
-	loginacct \
-	memalloc \
-	mmap \
-	pgsjc pipes pmsg \
-	proc proccred procexec procpri procres \
-	progconc \
-	psem pshm pty \
-	shlibs \
-	signals sockets \
-	svipc svmsg svsem svshm \
-	sysinfo \
-	syslim \
-	threads time timers tty \
-	users_groups \
-	vmem \
-	xattr
+GEN_EXE = test forking
 
-# The "namespaces" directory is deliberately excluded from the above
-# list because much of the code requires a fairly recent kernel and
-# userspace to build. Nevertheless, there is a Makefile in that directory.
+EXE = ${GEN_EXE} ${LINUX_EXE}
 
+all : ${EXE}
 
-BUILD_DIRS = ${DIRS} ${CDIRS}
+allgen : ${GEN_EXE}
 
-# Dummy targets for building and clobbering everything in all subdirectories
+clean :
+	${RM} ${EXE} *.o
 
-all: 	
-	@ for dir in ${BUILD_DIRS}; do (cd $${dir}; ${MAKE}) ; done
+showall :
+	@ echo ${EXE}
 
-allgen: 
-	@ for dir in ${BUILD_DIRS}; do (cd $${dir}; ${MAKE} allgen) ; done
+test_test: test_test.o
+	${CC} -o $@ test_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
 
-clean: 
-	@ for dir in ${BUILD_DIRS}; do (cd $${dir}; ${MAKE} clean) ; done
+	forking_test: forking_test.o
+		${CC} -o $@ forking_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
+
+${EXE} : ${LPLIB}		# True as a rough approximation

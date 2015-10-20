@@ -25,7 +25,8 @@ DIRS = 	lib \
 	threads time timers tty \
 	users_groups \
 	vmem \
-	xattr
+	xattr \
+	holodeck p1 p2 p3 p4
 
 # The "namespaces" directory is deliberately excluded from the above
 # list because much of the code requires a fairly recent kernel and
@@ -36,11 +37,11 @@ BUILD_DIRS = ${DIRS} ${CDIRS}
 
 # Dummy targets for building and clobbering everything in all subdirectories
 
-all: 	
+all:
 	@ for dir in ${BUILD_DIRS}; do (cd $${dir}; ${MAKE}) ; done
 
-allgen: 
+allgen:
 	@ for dir in ${BUILD_DIRS}; do (cd $${dir}; ${MAKE} allgen) ; done
 
-clean: 
+clean:
 	@ for dir in ${BUILD_DIRS}; do (cd $${dir}; ${MAKE} clean) ; done

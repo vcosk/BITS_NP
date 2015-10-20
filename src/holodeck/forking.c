@@ -23,7 +23,7 @@ int main(int argc, char const *argv[]) {
       break;
   }
 
-  printf("PID=%ld %s  iData=%d iLocal=%d\n", (long)getpid(), (0==childPid?"(child)":"(parent)", iData, iLocal));
+  printf("PID=%ld %s  iData=%d iLocal=%d\n", (long)getpid(), (0==childPid?"(child)":"(parent)"), iData, iLocal);
 
   return 0;
 }
