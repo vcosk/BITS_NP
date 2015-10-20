@@ -1,6 +1,6 @@
 include ../Makefile.inc
 
-GEN_EXE = test forking
+GEN_EXE = test forking execve envargs pipe try
 
 EXE = ${GEN_EXE} ${LINUX_EXE}
 
@@ -17,7 +17,19 @@ showall :
 test_test: test_test.o
 	${CC} -o $@ test_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
 
-	forking_test: forking_test.o
-		${CC} -o $@ forking_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
+forking_test: forking_test.o
+	${CC} -o $@ forking_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
+
+execve_test: execve_test.o
+	${CC} -o $@ execve_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
+
+envargs_test: envargs_test.o
+	${CC} -o $@ envargs_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
+
+pipe_test: pipe_test.o
+	${CC} -o $@ pipe_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
+
+try_test: try_test.o
+	${CC} -o $@ try_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
 
 ${EXE} : ${LPLIB}		# True as a rough approximation
