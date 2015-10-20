@@ -2,25 +2,27 @@
 #include "tlpi_hdr.h"
 
 int main(int argc, char const *argv[]) {
-
+  pid_t pid;
   if(argc < 2) {
     printf("usage format %s command ... \n", argv[0]);
   }
   else {
-    // execlp("ls", "ls", "-lrt", (char *)0);
-
-    // execlp(argv[1], argv[1], (char *)0);
-    // execlp(argv[1], argv[1], *(argv+2), (char *)0);
-
-    if(argc > 2) {
-      char *params[10];
-      int index;
-      for(index=0; index<(argc - 2); index++) {
-        params[index] = (char *)malloc(strlen(argv[index+2])+1);
-        strcpy(params[index], argv[index+2]);
-        // printf("%s\n", params[index]);
+    if ((pid = fork()) == -1) {
+       perror("fork() error");
+    }
+    else {
+      int limit = 1;
+      if(argc > limit) {
+        char *params[argc - limit + 1];
+        int index;
+        for(index=0; index<(argc - limit); index++) {
+          params[index] = (char *)malloc(strlen(argv[index+limit])+1);
+          strcpy(params[index], argv[index+limit]);
+          printf("%s\n", params[index]);
+        }
+        params[index] = NULL;
+        execvp(params[0], params);
       }
-      execvp(argv[1], params);
     }
   }
 
