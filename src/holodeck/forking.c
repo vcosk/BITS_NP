@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include "tlpi_hdr.h"
+#include <stdio.h>
 
 static int iData = 0;
 int main(int argc, char const *argv[]) {
@@ -10,7 +10,7 @@ int main(int argc, char const *argv[]) {
   switch(childPid = fork()) {
     case -1:
       printf("Error!!!\n");
-      exit(1);
+      return -1;
       break;
 
     case 0:
@@ -23,7 +23,7 @@ int main(int argc, char const *argv[]) {
       break;
   }
 
-  printf("PID=%ld %s  ")
+  printf("PID=%ld %s  iData=%d iLocal=%d\n", (long)getpid(), (0==childPid?"(child)":"(parent)", iData, iLocal));
 
   return 0;
 }
