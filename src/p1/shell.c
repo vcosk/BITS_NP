@@ -5,7 +5,7 @@
 
 void trim(char *);
 int split (const char*, char, char***);
-void executeCommand(char**,int[]);
+void executeCommandOnePipe(char**, int[]);
 
 static int error = 0;
 
@@ -24,6 +24,15 @@ int main(int argc, char *argv[]) {
         trim(sCommand);
 
         int command_pipe[2];
+        if (pipe(command_pipe) == -1) {
+          errExit("pipe"); /* Create the pipe */
+        }
+        dup2(1, command_pipe[1]);
+        // dup2(0, command_pipe[0]);
+        // close(1);
+        // dup(command_pipe[1]);
+        // close(command_pipe[0]);
+        // close(command_pipe[1]);
 
         char **sSplitStr = NULL;
         int iSplitSize = split(sCommand, ' ', &sSplitStr);
@@ -37,27 +46,111 @@ int main(int argc, char *argv[]) {
             break;
           }
           else {
-            executeCommand(sSplitStr, command_pipe);
+            pid_t childpid;
+            childpid = fork();
+
+            switch (childpid) {
+              case -1:
+                errExit("executeCommand: Error in fork");
+                break;
+              case 0:
+                close(1);
+                dup(command_pipe[1]);
+                close(command_pipe[0]);
+                close(command_pipe[1]);
+                printf("A1\n");
+                execvp(sSplitStr[0], sSplitStr);
+                break;
+            }
+            printf("A1");
+            wait(0);
+            printf("A2");
+
+            childpid = fork();
+
+            switch (childpid) {
+              case -1:
+                errExit("executeCommand: Error in fork");
+                break;
+              case 0:
+                close(0);
+                dup(command_pipe[0]);
+                close(command_pipe[1]);
+                close(command_pipe[0]);
+                char* prog2[] = { "wc", "-l", 0};
+                execvp(prog2[0], prog2);
+                break;
+                //Waits till the child precess executes the command.
+              default:
+                close(command_pipe[0]);
+                close(command_pipe[1]);
+                wait(0);
+                break;
+            }
+
+
           }
         }
 
-        char buf[BUF_SIZE];
-        ssize_t numRead;
+        // int command_pipe_2[2];
+        // if (pipe(command_pipe_2) == -1) {
+        //   errExit("pipe"); /* Create the pipe */
+        // }
 
-        for (;;) {
-          /* Read data from pipe, echo on stdout */
-          numRead = read(command_pipe[0], buf, BUF_SIZE);
-          if (numRead == -1) {
-            errExit("read");
-          }
-          if (numRead == 0) {
-            break;
-          }
-          /* End-of-file */
-          if (write(STDOUT_FILENO, buf, numRead) != numRead) {
-            fatal("parent - partial/failed write");
-          }
-        }
+        // close(STDOUT_FILENO);
+        // dup(command_pipe_2[1]);
+        //
+        // close(0);
+        // dup(command_pipe[0]);
+        //
+        // char* prog2[] = { "wc", "-l", 0};
+        // executeCommand(prog2);
+        //
+        // close(command_pipe[0]);
+        // close(command_pipe_2[1]);
+
+        // close(command_pipe[1]);
+
+        // dup2(command_pipe[1], 1);
+        //
+        // dup2(0, command_pipe[0]);
+        // char* prog2[] = { "wc", "-l", 0};
+        // executeCommand(prog2);
+        // close(command_pipe[0]);
+        // dup2(command_pipe[0], 0);
+        // close(0);
+        // dup(command_pipe[0]);
+        //
+        // close(command_pipe[1]);
+        // close(command_pipe[0]);
+        //
+        // char* prog2[] = { "wc", "-l", 0};
+        // executeCommand(prog2);
+        //
+
+        // close(command_pipe[0]);
+        // close(command_pipe[1]);
+
+        // dup2(command_pipe[1], 1);
+
+        // char buf[BUF_SIZE];
+        // ssize_t numRead;
+        //
+        // for (;;) {
+        //   printf("PP\n");
+        //   /* Read data from pipe, echo on stdout */
+        //   numRead = read(command_pipe[0], buf, BUF_SIZE);
+        //   if (numRead == -1) {
+        //     errExit("read");
+        //   }
+        //   if (numRead == 0) {
+        //     break;
+        //   }
+        //   /* End-of-file */
+        //   if (write(STDOUT_FILENO, buf, numRead) != numRead) {
+        //     fatal("parent - partial/failed write");
+        //   }
+        // }
       }
       else {
         // printf("NOTHING");
@@ -69,12 +162,8 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-void executeCommand(char **sCommand, int command_pipe[]) {
+void executeCommandOnePipe(char **sCommand, int command_pipe[]) {
   pid_t childpid;
-
-  if (pipe(command_pipe) == -1) {
-    errExit("pipe"); /* Create the pipe */
-  }
   childpid = fork();
 
   switch (childpid) {
@@ -82,15 +171,29 @@ void executeCommand(char **sCommand, int command_pipe[]) {
       errExit("executeCommand: Error in fork");
       break;
     case 0:
-      dup2(1, command_pipe[1]);
-      if (close(command_pipe[0]) == -1) {
-        errExit("close read");
+      if(close(STDOUT_FILENO) == -1) {
+        errExit("Error closing STDOUT_FILENO");
       }
+      if(dup(command_pipe[1]) == -1) {
+        errExit("Error replacing STDOUT_FILENO");
+      }
+      if(close(command_pipe[0]) == -1) {
+        errExit("Error closing pipe read");
+      }
+      if(close(command_pipe[1]) == -1) {
+        errExit("Error closing pipe write");
+      }
+      printf("A1\n");
+      sleep(10);
       execvp(sCommand[0], sCommand);
       break;
+      //Waits till the child precess executes the command.
     default:
-      if (close(command_pipe[1]) == -1) {
-        errExit("close");
+      printf("B1\n");
+      wait(0);
+      printf("B2\n");
+      if(close(command_pipe[1]) == -1) {
+        errExit("Error closing pipe write");
       }
       break;
   }
