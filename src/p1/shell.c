@@ -14,15 +14,13 @@ int main(int argc, char *argv[]) {
   int bContinueLoop = TRUE;
 
   //Pipe to be used
-  int command_pipe[2];
-  if (pipe(command_pipe) == -1) {
-    errExit("pipe"); /* Create the pipe */
-  }
+  int command_pipe_1[2];
+  int command_pipe_2[2];
 
 
   while (error == 0 && bContinueLoop) {
     //Print shell prompt
-    printf("VIKK: ");
+    printf("prompt: ");
     //Reads the input data from stdin and copies to sCommand string.
     if (fgets(sCommand, sizeof sCommand, stdin)) {
       //Removes the new line charecter from the end.
@@ -34,23 +32,23 @@ int main(int argc, char *argv[]) {
         char **sSplitStr = NULL;
         int iSplitSize = split(sCommand, ' ', &sSplitStr);
         if(iSplitSize > 0) {
-          if(strcmp(sSplitStr[0], "exit") == 0) {
-            bContinueLoop = FALSE;
-            break;
-          }
-          else if(strcmp(sSplitStr[0], "x") == 0) {
+          if(strcmp(sSplitStr[0], "exit") == 0 || strcmp(sSplitStr[0], "x") == 0 || strcmp(sSplitStr[0], "q") == 0) {
             bContinueLoop = FALSE;
             break;
           }
           else {
-            executeCommandOnePipe(sSplitStr, command_pipe);
+            printf("AA\n");
+            if (pipe(command_pipe_1) == -1) {
+              errExit("pipe"); /* Create the pipe */
+            }
+            executeCommandOnePipe(sSplitStr, command_pipe_1);
           }
         }
 
-        char* prog2[] = { "wc", "-l", NULL};
-        executeCommandOnePipe(prog2, command_pipe);
+        // char* prog2[] = { "wc", "-l", NULL};
+        // executeCommandOnePipe(prog2, command_pipe);
 
-        read_all(command_pipe[0], STDOUT_FILENO);
+        read_all(command_pipe_1[0], STDOUT_FILENO);
 
 
         // char buf[BUF_SIZE];
@@ -79,6 +77,7 @@ int main(int argc, char *argv[]) {
 
 void executeCommandOnePipe(char **sCommand, int command_pipe[]) {
   pid_t childpid;
+  printf("debug1\n");
   childpid = fork();
   switch (childpid) {
     case -1:
@@ -92,7 +91,7 @@ void executeCommandOnePipe(char **sCommand, int command_pipe[]) {
       if(close(command_pipe[1]) == -1) {
         errExit("Child: Error closing pipe write");
       }
-
+      printf("debug2\n");
       if(dup2(STDIN_FILENO, command_pipe[0]) == -1) {
         errExit("Child: Error replacing STDIN_FILENO");
       }
@@ -101,12 +100,19 @@ void executeCommandOnePipe(char **sCommand, int command_pipe[]) {
         errExit("Child: Error replacing STDOUT_FILENO");
       }
 
+      if(dup2(STDERR_FILENO, command_pipe[1]) == -1) {
+        errExit("Child: Error replacing STDOUT_FILENO");
+      }
+
+      printf("debug3\n");
+      // sleep(5);
       execvp(sCommand[0], sCommand);
+      errExit("Invalid command %s", sCommand[0]);
       break;
       //Waits till the child precess executes the command.
     default:
       wait(0);
-      sleep(10);
+      // sleep(5);
       if(close(command_pipe[0]) == -1) {
         errExit("Parent: Error closing pipe read");
       }
