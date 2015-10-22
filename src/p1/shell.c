@@ -12,6 +12,14 @@ static int error = 0;
 int main(int argc, char *argv[]) {
   char sCommand[MAX_COMMAND_STRING_SIZE];
   int bContinueLoop = TRUE;
+
+  //Pipe to be used
+  int command_pipe[2];
+  if (pipe(command_pipe) == -1) {
+    errExit("pipe"); /* Create the pipe */
+  }
+
+
   while (error == 0 && bContinueLoop) {
     //Print shell prompt
     printf("VIKK: ");
@@ -22,17 +30,6 @@ int main(int argc, char *argv[]) {
       //If text is entered.
       if(strlen(sCommand) > 0) {
         trim(sCommand);
-
-        int command_pipe[2];
-        if (pipe(command_pipe) == -1) {
-          errExit("pipe"); /* Create the pipe */
-        }
-        dup2(1, command_pipe[1]);
-        // dup2(0, command_pipe[0]);
-        // close(1);
-        // dup(command_pipe[1]);
-        // close(command_pipe[0]);
-        // close(command_pipe[1]);
 
         char **sSplitStr = NULL;
         int iSplitSize = split(sCommand, ' ', &sSplitStr);
@@ -46,92 +43,15 @@ int main(int argc, char *argv[]) {
             break;
           }
           else {
-            pid_t childpid;
-            childpid = fork();
-
-            switch (childpid) {
-              case -1:
-                errExit("executeCommand: Error in fork");
-                break;
-              case 0:
-                close(1);
-                dup(command_pipe[1]);
-                close(command_pipe[0]);
-                close(command_pipe[1]);
-                printf("A1\n");
-                execvp(sSplitStr[0], sSplitStr);
-                break;
-            }
-            printf("A1");
-            wait(0);
-            printf("A2");
-
-            childpid = fork();
-
-            switch (childpid) {
-              case -1:
-                errExit("executeCommand: Error in fork");
-                break;
-              case 0:
-                close(0);
-                dup(command_pipe[0]);
-                close(command_pipe[1]);
-                close(command_pipe[0]);
-                char* prog2[] = { "wc", "-l", 0};
-                execvp(prog2[0], prog2);
-                break;
-                //Waits till the child precess executes the command.
-              default:
-                close(command_pipe[0]);
-                close(command_pipe[1]);
-                wait(0);
-                break;
-            }
-
-
+            executeCommandOnePipe(sSplitStr, command_pipe);
           }
         }
 
-        // int command_pipe_2[2];
-        // if (pipe(command_pipe_2) == -1) {
-        //   errExit("pipe"); /* Create the pipe */
-        // }
+        char* prog2[] = { "wc", "-l", NULL};
+        executeCommandOnePipe(prog2, command_pipe);
 
-        // close(STDOUT_FILENO);
-        // dup(command_pipe_2[1]);
-        //
-        // close(0);
-        // dup(command_pipe[0]);
-        //
-        // char* prog2[] = { "wc", "-l", 0};
-        // executeCommand(prog2);
-        //
-        // close(command_pipe[0]);
-        // close(command_pipe_2[1]);
+        read_all(command_pipe[0], STDOUT_FILENO);
 
-        // close(command_pipe[1]);
-
-        // dup2(command_pipe[1], 1);
-        //
-        // dup2(0, command_pipe[0]);
-        // char* prog2[] = { "wc", "-l", 0};
-        // executeCommand(prog2);
-        // close(command_pipe[0]);
-        // dup2(command_pipe[0], 0);
-        // close(0);
-        // dup(command_pipe[0]);
-        //
-        // close(command_pipe[1]);
-        // close(command_pipe[0]);
-        //
-        // char* prog2[] = { "wc", "-l", 0};
-        // executeCommand(prog2);
-        //
-
-        // close(command_pipe[0]);
-        // close(command_pipe[1]);
-
-        // dup2(command_pipe[1], 1);
 
         // char buf[BUF_SIZE];
         // ssize_t numRead;
@@ -152,11 +72,6 @@ int main(int argc, char *argv[]) {
         //   }
         // }
       }
-      else {
-        // printf("NOTHING");
-        // error = -1;
-        // break;
-      }
     }
   }
   return 0;
@@ -165,37 +80,53 @@ int main(int argc, char *argv[]) {
 void executeCommandOnePipe(char **sCommand, int command_pipe[]) {
   pid_t childpid;
   childpid = fork();
-
   switch (childpid) {
     case -1:
       errExit("executeCommand: Error in fork");
       break;
     case 0:
-      if(close(STDOUT_FILENO) == -1) {
-        errExit("Error closing STDOUT_FILENO");
-      }
-      if(dup(command_pipe[1]) == -1) {
-        errExit("Error replacing STDOUT_FILENO");
-      }
       if(close(command_pipe[0]) == -1) {
-        errExit("Error closing pipe read");
+        errExit("Child: Error closing pipe read");
       }
+
       if(close(command_pipe[1]) == -1) {
-        errExit("Error closing pipe write");
+        errExit("Child: Error closing pipe write");
       }
-      printf("A1\n");
-      sleep(10);
+
+      if(dup2(STDIN_FILENO, command_pipe[0]) == -1) {
+        errExit("Child: Error replacing STDIN_FILENO");
+      }
+
+      if(dup2(STDOUT_FILENO, command_pipe[1]) == -1) {
+        errExit("Child: Error replacing STDOUT_FILENO");
+      }
+
       execvp(sCommand[0], sCommand);
       break;
       //Waits till the child precess executes the command.
     default:
-      printf("B1\n");
       wait(0);
-      printf("B2\n");
+      sleep(10);
+      if(close(command_pipe[0]) == -1) {
+        errExit("Parent: Error closing pipe read");
+      }
+
       if(close(command_pipe[1]) == -1) {
-        errExit("Error closing pipe write");
+        errExit("Parent: Error closing pipe write");
       }
       break;
+  }
+}
+
+void read_all(int src, int dst) {
+  char buf[BUFSIZ];
+  ssize_t bytes_read, bytes_written;
+  while((bytes_read = read(src, buf, BUFSIZ)) > 0) {
+    bytes_written = 0;
+    while(bytes_written < bytes_read)
+      bytes_written += write(dst,
+        buf + bytes_written,
+        bytes_read - bytes_written);
   }
 }
 
