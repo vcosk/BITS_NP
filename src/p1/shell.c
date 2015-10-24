@@ -65,6 +65,28 @@ void    loop_pipe(char *sCommand)
   char **sCommandPipeSplit = NULL;
   printf("sCommand: %s\n", sCommand);
   int iPipeSplitSize = split(sCommand, '|', &sCommandPipeSplit);
+
+
+  int iCharCount = 0;
+  int iRedirectCount = 0;
+  for(int iPipeIndex=0; iPipeIndex < iPipeSplitSize; iPipeIndex++) {
+    int iCurrentCommandStrLen = strlen(sCommandPipeSplit[iPipeIndex]);
+    if(iCurrentCommandStrLen == 0) {
+      iCharCount += (iPipeIndex-1);
+      while(sCommand[iCharCount + iRedirectCount] == '|') {
+        iRedirectCount++;
+      }
+      sCommandPipeSplit[iPipeIndex] = NULL;
+      iPipeSplitSize = iPipeIndex;
+      break;
+    }
+    iCharCount += iCurrentCommandStrLen;
+  }
+
+  char **sRedirctCommands = NULL;
+  int iRedirectCommandCount = split(&sCommand[iCharCount + iRedirectCount], ',', &sRedirctCommands);
+
+
   int   p[2];
   pid_t pid;
   int   fd_in = 0;
