@@ -13,14 +13,9 @@ int main(int argc, char *argv[]) {
   char sCommand[MAX_COMMAND_STRING_SIZE];
   int bContinueLoop = TRUE;
 
-  //Pipe to be used
-  int command_pipe_1[2];
-  int command_pipe_2[2];
-
-
   while (error == 0 && bContinueLoop) {
     //Print shell prompt
-    printf("prompt: ");
+    printf("prompt$: ");
     //Reads the input data from stdin and copies to sCommand string.
     if (fgets(sCommand, sizeof sCommand, stdin)) {
       //Removes the new line charecter from the end.
@@ -29,45 +24,32 @@ int main(int argc, char *argv[]) {
       if(strlen(sCommand) > 0) {
         trim(sCommand);
 
-        char **sSplitStr = NULL;
-        int iSplitSize = split(sCommand, ' ', &sSplitStr);
-        if(iSplitSize > 0) {
-          if(strcmp(sSplitStr[0], "exit") == 0 || strcmp(sSplitStr[0], "x") == 0 || strcmp(sSplitStr[0], "q") == 0) {
-            bContinueLoop = FALSE;
-            break;
-          }
-          else {
-            printf("AA\n");
-            if (pipe(command_pipe_1) == -1) {
-              errExit("pipe"); /* Create the pipe */
-            }
-            executeCommandOnePipe(sSplitStr, command_pipe_1);
-          }
-        }
-
-        // char* prog2[] = { "wc", "-l", NULL};
-        // executeCommandOnePipe(prog2, command_pipe);
-
-        read_all(command_pipe_1[0], STDOUT_FILENO);
-
-
-        // char buf[BUF_SIZE];
-        // ssize_t numRead;
-        //
-        // for (;;) {
-        //   printf("PP\n");
-        //   /* Read data from pipe, echo on stdout */
-        //   numRead = read(command_pipe[0], buf, BUF_SIZE);
-        //   if (numRead == -1) {
-        //     errExit("read");
-        //   }
-        //   if (numRead == 0) {
+        char **sCommandPipeSplit = NULL;
+        int iPipeSplitSize = split(sCommand, '|', &sCommandPipeSplit);
+        // char **sSplitStr = NULL;
+        // int iSplitSize = split(sCommand, ' ', &sSplitStr);
+        // if(iSplitSize > 0) {
+        //   if(strcmp(sSplitStr[0], "exit") == 0 || strcmp(sSplitStr[0], "x") == 0 || strcmp(sSplitStr[0], "q") == 0) {
+        //     bContinueLoop = FALSE;
         //     break;
         //   }
-        //   /* End-of-file */
-        //   if (write(STDOUT_FILENO, buf, numRead) != numRead) {
-        //     fatal("parent - partial/failed write");
+        //   else {
         //   }
+        printf("iPipeSplitSize: %d\n", iPipeSplitSize);
+        for(int iPipeIndex=0; iPipeIndex < iPipeSplitSize; iPipeIndex++) {
+          trim(sCommandPipeSplit[iPipeIndex]);
+          char **sCommandArgSplit = NULL;
+          printf("sCommandPipeSplit[iPipeIndex]: %s\n", sCommandPipeSplit[iPipeIndex]);
+          int iArgSplitSize = split(sCommandPipeSplit[iPipeIndex], ' ', &sCommandArgSplit);
+          printf("iArgSplitSize: %d\n", iArgSplitSize);
+          int bLastCommand = (iPipeIndex+1) == iPipeSplitSize?TRUE:FALSE;
+          for(int iArgIndex=0; iArgIndex < iArgSplitSize; iArgIndex++) {
+            printf("%s\n", sCommandArgSplit[iArgIndex]);
+            if(bLastCommand) {
+              printf("I AM THE LAST ONE!!!\n");
+            }
+          }
+        }
         // }
       }
     }
