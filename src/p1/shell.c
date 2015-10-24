@@ -24,8 +24,9 @@ int main(int argc, char *argv[]) {
       if(strlen(sCommand) > 0) {
         trim(sCommand);
 
-        char **sCommandPipeSplit = NULL;
-        int iPipeSplitSize = split(sCommand, '|', &sCommandPipeSplit);
+        loop_pipe(sCommand);
+        // char **sCommandPipeSplit = NULL;
+        // int iPipeSplitSize = split(sCommand, '|', &sCommandPipeSplit);
         // char **sSplitStr = NULL;
         // int iSplitSize = split(sCommand, ' ', &sSplitStr);
         // if(iSplitSize > 0) {
@@ -35,26 +36,66 @@ int main(int argc, char *argv[]) {
         //   }
         //   else {
         //   }
-        printf("iPipeSplitSize: %d\n", iPipeSplitSize);
-        for(int iPipeIndex=0; iPipeIndex < iPipeSplitSize; iPipeIndex++) {
-          trim(sCommandPipeSplit[iPipeIndex]);
-          char **sCommandArgSplit = NULL;
-          printf("sCommandPipeSplit[iPipeIndex]: %s\n", sCommandPipeSplit[iPipeIndex]);
-          int iArgSplitSize = split(sCommandPipeSplit[iPipeIndex], ' ', &sCommandArgSplit);
-          printf("iArgSplitSize: %d\n", iArgSplitSize);
-          int bLastCommand = (iPipeIndex+1) == iPipeSplitSize?TRUE:FALSE;
-          for(int iArgIndex=0; iArgIndex < iArgSplitSize; iArgIndex++) {
-            printf("%s\n", sCommandArgSplit[iArgIndex]);
-            if(bLastCommand) {
-              printf("I AM THE LAST ONE!!!\n");
-            }
-          }
-        }
+        // printf("iPipeSplitSize: %d\n", iPipeSplitSize);
+        // for(int iPipeIndex=0; iPipeIndex < iPipeSplitSize; iPipeIndex++) {
+        //   trim(sCommandPipeSplit[iPipeIndex]);
+        //   printf("sCommandPipeSplit[iPipeIndex]: %s\n", sCommandPipeSplit[iPipeIndex]);
+        //   char **sCommandArgSplit = NULL;
+        //   int iArgSplitSize = split(sCommandPipeSplit[iPipeIndex], ' ', &sCommandArgSplit);
+        //   printf("iArgSplitSize: %d\n", iArgSplitSize);
+        //   int bLastCommand = (iPipeIndex+1) == iPipeSplitSize?TRUE:FALSE;
+        //   for(int iArgIndex=0; iArgIndex < iArgSplitSize; iArgIndex++) {
+        //     printf("%s\n", sCommandArgSplit[iArgIndex]);
+        //     if(bLastCommand) {
+        //       printf("I AM THE LAST ONE!!!\n");
+        //     }
+        //   }
+        // }
         // }
       }
     }
   }
   return 0;
+}
+
+void    loop_pipe(char *sCommand)
+{
+
+  trim(sCommand);
+  char **sCommandPipeSplit = NULL;
+  printf("sCommand: %s\n", sCommand);
+  int iPipeSplitSize = split(sCommand, '|', &sCommandPipeSplit);
+  int   p[2];
+  pid_t pid;
+  int   fd_in = 0;
+
+  for(int iPipeIndex=0; iPipeIndex < iPipeSplitSize; iPipeIndex++) {
+    int bLastCommand = (iPipeIndex+1) == iPipeSplitSize?TRUE:FALSE;
+    char **sCommandArgSplit = NULL;
+    trim(sCommandPipeSplit[iPipeIndex]);
+    int iArgSplitSize = split(sCommandPipeSplit[iPipeIndex], ' ', &sCommandArgSplit);
+    pipe(p);
+    if ((pid = fork()) == -1)
+    {
+      exit(EXIT_FAILURE);
+    }
+    else if (pid == 0)
+    {
+      dup2(fd_in, 0); //change the input according to the old one
+      if (!bLastCommand) {
+        dup2(p[1], 1);
+      }
+      close(p[0]);
+      execvp(sCommandArgSplit[0], sCommandArgSplit);
+      exit(EXIT_FAILURE);
+    }
+    else
+    {
+      wait(NULL);
+      close(p[1]);
+      fd_in = p[0]; //save the input for the next command
+    }
+  }
 }
 
 void executeCommandOnePipe(char **sCommand, int command_pipe[]) {
