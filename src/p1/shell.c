@@ -23,35 +23,7 @@ int main(int argc, char *argv[]) {
       //If text is entered.
       if(strlen(sCommand) > 0) {
         trim(sCommand);
-
         loop_pipe(sCommand);
-        // char **sCommandPipeSplit = NULL;
-        // int iPipeSplitSize = split(sCommand, '|', &sCommandPipeSplit);
-        // char **sSplitStr = NULL;
-        // int iSplitSize = split(sCommand, ' ', &sSplitStr);
-        // if(iSplitSize > 0) {
-        //   if(strcmp(sSplitStr[0], "exit") == 0 || strcmp(sSplitStr[0], "x") == 0 || strcmp(sSplitStr[0], "q") == 0) {
-        //     bContinueLoop = FALSE;
-        //     break;
-        //   }
-        //   else {
-        //   }
-        // printf("iPipeSplitSize: %d\n", iPipeSplitSize);
-        // for(int iPipeIndex=0; iPipeIndex < iPipeSplitSize; iPipeIndex++) {
-        //   trim(sCommandPipeSplit[iPipeIndex]);
-        //   printf("sCommandPipeSplit[iPipeIndex]: %s\n", sCommandPipeSplit[iPipeIndex]);
-        //   char **sCommandArgSplit = NULL;
-        //   int iArgSplitSize = split(sCommandPipeSplit[iPipeIndex], ' ', &sCommandArgSplit);
-        //   printf("iArgSplitSize: %d\n", iArgSplitSize);
-        //   int bLastCommand = (iPipeIndex+1) == iPipeSplitSize?TRUE:FALSE;
-        //   for(int iArgIndex=0; iArgIndex < iArgSplitSize; iArgIndex++) {
-        //     printf("%s\n", sCommandArgSplit[iArgIndex]);
-        //     if(bLastCommand) {
-        //       printf("I AM THE LAST ONE!!!\n");
-        //     }
-        //   }
-        // }
-        // }
       }
     }
   }
@@ -83,14 +55,17 @@ void    loop_pipe(char *sCommand)
     iCharCount += iCurrentCommandStrLen;
   }
 
+printf("iCharCount %d iRedirectCount %d\n", iCharCount, iRedirectCount);
   char **sRedirctCommands = NULL;
-  int iRedirectCommandCount = split(&sCommand[iCharCount + iRedirectCount], ',', &sRedirctCommands);
-
-
+  int iRedirectCommandCount = 0;
+  if(iRedirectCount > 0) {
+    iRedirectCommandCount = split(sCommand+(iCharCount + iRedirectCount), ',', &sRedirctCommands);
+    printf("%s\n", sCommand+(iCharCount + iRedirectCount));
+  }
   int   p[2];
   pid_t pid;
   int   fd_in = 0;
-
+printf("iRedirectCommandCount %d\n", iRedirectCommandCount);
   for(int iPipeIndex=0; iPipeIndex < iPipeSplitSize; iPipeIndex++) {
     int bLastCommand = (iPipeIndex+1) == iPipeSplitSize?TRUE:FALSE;
     char **sCommandArgSplit = NULL;
@@ -104,7 +79,7 @@ void    loop_pipe(char *sCommand)
     else if (pid == 0)
     {
       dup2(fd_in, 0); //change the input according to the old one
-      if (!bLastCommand) {
+      if (!bLastCommand && iRedirectCommandCount == 0) {
         dup2(p[1], 1);
       }
       close(p[0]);
@@ -113,60 +88,45 @@ void    loop_pipe(char *sCommand)
     }
     else
     {
+      printf("A\n");
       wait(NULL);
-      close(p[1]);
+      sleep(5);
+      if(iRedirectCommandCount == 0){
+        close(p[1]);
+      }
+      printf("B\n");
       fd_in = p[0]; //save the input for the next command
+      printf("fd_in %d\n", fd_in);
     }
   }
-}
-
-void executeCommandOnePipe(char **sCommand, int command_pipe[]) {
-  pid_t childpid;
-  printf("debug1\n");
-  childpid = fork();
-  switch (childpid) {
-    case -1:
-      errExit("executeCommand: Error in fork");
-      break;
-    case 0:
-      if(close(command_pipe[0]) == -1) {
-        errExit("Child: Error closing pipe read");
-      }
-
-      if(close(command_pipe[1]) == -1) {
-        errExit("Child: Error closing pipe write");
-      }
-      printf("debug2\n");
-      if(dup2(STDIN_FILENO, command_pipe[0]) == -1) {
-        errExit("Child: Error replacing STDIN_FILENO");
-      }
-
-      if(dup2(STDOUT_FILENO, command_pipe[1]) == -1) {
-        errExit("Child: Error replacing STDOUT_FILENO");
-      }
-
-      if(dup2(STDERR_FILENO, command_pipe[1]) == -1) {
-        errExit("Child: Error replacing STDOUT_FILENO");
-      }
-
-      printf("debug3\n");
-      // sleep(5);
-      execvp(sCommand[0], sCommand);
-      errExit("Invalid command %s", sCommand[0]);
-      break;
-      //Waits till the child precess executes the command.
-    default:
-      wait(0);
-      // sleep(5);
-      if(close(command_pipe[0]) == -1) {
-        errExit("Parent: Error closing pipe read");
-      }
-
-      if(close(command_pipe[1]) == -1) {
-        errExit("Parent: Error closing pipe write");
-      }
-      break;
+  for(int iRedirectCommandIndex=0; iRedirectCommandIndex < iRedirectCommandCount; iRedirectCommandIndex++) {
+    char **sCommandArgSplit = NULL;
+    trim(sCommandPipeSplit[iRedirectCommandIndex]);
+    int iArgSplitSize = split(sRedirctCommands[iRedirectCommandIndex], ' ', &sCommandArgSplit);
+    pipe(p);
+    printf("fd_in %d\n", fd_in);
+    if ((pid = fork()) == -1)
+    {
+      exit(EXIT_FAILURE);
+    }
+    else if (pid == 0)
+    {
+      dup2(fd_in, 0); //change the input according to the old one
+      // if (iRedirectCommandIndex+1 < iRedirectCommandCount) {
+      //   dup2(p[1], 1);
+      // }
+      close(p[0]);
+      execvp(sCommandArgSplit[0], sCommandArgSplit);
+      exit(EXIT_FAILURE);
+    }
+    else
+    {
+      wait(NULL);
+      close(p[1]);
+      // fd_in = p[0]; //save the input for the next command
+    }
   }
+
 }
 
 void read_all(int src, int dst) {
