@@ -1,6 +1,6 @@
 include ../Makefile.inc
 
-GEN_EXE = test forking execve envargs pipe pipe2
+GEN_EXE = test forking execve envargs pipe pipe2 pipe3 multiplesep
 
 EXE = ${GEN_EXE} ${LINUX_EXE}
 
@@ -32,6 +32,11 @@ pipe_test: pipe_test.o
 pipe2_test: pipe2_test.o
 	${CC} -o $@ pipe2_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
 
+pipe3_test: pipe3_test.o
+	${CC} -o $@ pipe3_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
+
+multiplesep_test: multiplesep_test.o
+	${CC} -o $@ multiplesep_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
 
 try_test: try_test.o
 	${CC} -o $@ try_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
