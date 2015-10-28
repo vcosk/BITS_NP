@@ -35,7 +35,6 @@ void    loop_pipe(char *sCommand)
 
   trim(sCommand);
   char **sCommandPipeSplit = NULL;
-  printf("sCommand: %s\n", sCommand);
   int iPipeSplitSize = split(sCommand, '|', &sCommandPipeSplit);
 
 
@@ -55,17 +54,15 @@ void    loop_pipe(char *sCommand)
     iCharCount += iCurrentCommandStrLen;
   }
 
-printf("iCharCount %d iRedirectCount %d\n", iCharCount, iRedirectCount);
   char **sRedirctCommands = NULL;
   int iRedirectCommandCount = 0;
   if(iRedirectCount > 0) {
     iRedirectCommandCount = split(sCommand+(iCharCount + iRedirectCount), ',', &sRedirctCommands);
-    printf("%s\n", sCommand+(iCharCount + iRedirectCount));
   }
   int   p[2];
   pid_t pid;
   int   fd_in = 0;
-printf("iRedirectCommandCount %d\n", iRedirectCommandCount);
+
   for(int iPipeIndex=0; iPipeIndex < iPipeSplitSize; iPipeIndex++) {
     int bLastCommand = (iPipeIndex+1) == iPipeSplitSize?TRUE:FALSE;
     char **sCommandArgSplit = NULL;
@@ -88,15 +85,11 @@ printf("iRedirectCommandCount %d\n", iRedirectCommandCount);
     }
     else
     {
-      printf("A\n");
       wait(NULL);
-      sleep(5);
       if(iRedirectCommandCount == 0){
         close(p[1]);
       }
-      printf("B\n");
       fd_in = p[0]; //save the input for the next command
-      printf("fd_in %d\n", fd_in);
     }
   }
   for(int iRedirectCommandIndex=0; iRedirectCommandIndex < iRedirectCommandCount; iRedirectCommandIndex++) {
@@ -104,7 +97,6 @@ printf("iRedirectCommandCount %d\n", iRedirectCommandCount);
     trim(sCommandPipeSplit[iRedirectCommandIndex]);
     int iArgSplitSize = split(sRedirctCommands[iRedirectCommandIndex], ' ', &sCommandArgSplit);
     pipe(p);
-    printf("fd_in %d\n", fd_in);
     if ((pid = fork()) == -1)
     {
       exit(EXIT_FAILURE);
