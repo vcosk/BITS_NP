@@ -1,5 +1,5 @@
 #include "tlpi_hdr.h"
-
+#include<sys/ipc.h>
 #define  MAX_COMMAND_STRING_SIZE 256
 #define BUF_SIZE 10
 
@@ -76,7 +76,7 @@ void    loop_pipe(char *sCommand)
     else if (pid == 0)
     {
       dup2(fd_in, 0); //change the input according to the old one
-      if (!bLastCommand && iRedirectCommandCount == 0) {
+      if (!bLastCommand || iRedirectCount > 0) {
         dup2(p[1], 1);
       }
       close(p[0]);
@@ -86,17 +86,69 @@ void    loop_pipe(char *sCommand)
     else
     {
       wait(NULL);
-      if(iRedirectCommandCount == 0){
+//      if(iRedirectCommandCount == 0){
         close(p[1]);
-      }
+//      }
       fd_in = p[0]; //save the input for the next command
     }
   }
+  
+  
+//  return;
+  char *wc[] = {"wc", "-c", NULL};
+  
+  int p0[2];
+  int p1[2];
+  
+  pipe(p0);
+  pipe(p1);
+  
+  read_all_multiple(fd_in, p0[1], p1[1]);
+  
+  close(p0[1]);
+  close(p1[1]);
+
+    if ((pid = fork()) == -1)
+    {
+      exit(EXIT_FAILURE);
+    }
+    else if (pid == 0)
+    {
+      dup2(p0[0], 0); 
+      
+      execvp(wc[0], wc);
+      exit(EXIT_FAILURE);
+    }
+    else
+    {
+      wait(NULL);
+    }
+  
+  if ((pid = fork()) == -1)
+    {
+      exit(EXIT_FAILURE);
+    }
+    else if (pid == 0)
+    {
+      dup2(p1[0], 0); 
+      execvp(wc[0], wc);
+      exit(EXIT_FAILURE);
+    }
+    else
+    {
+      wait(NULL);
+    }
+  
+  return;
+  
+  
   for(int iRedirectCommandIndex=0; iRedirectCommandIndex < iRedirectCommandCount; iRedirectCommandIndex++) {
     char **sCommandArgSplit = NULL;
     trim(sCommandPipeSplit[iRedirectCommandIndex]);
     int iArgSplitSize = split(sRedirctCommands[iRedirectCommandIndex], ' ', &sCommandArgSplit);
-    pipe(p);
+    printf("%s\n", sCommandArgSplit[0]);
+//    continue;
+//    pipe(p);
     if ((pid = fork()) == -1)
     {
       exit(EXIT_FAILURE);
@@ -107,18 +159,37 @@ void    loop_pipe(char *sCommand)
       // if (iRedirectCommandIndex+1 < iRedirectCommandCount) {
       //   dup2(p[1], 1);
       // }
-      close(p[0]);
+//      close(p[0]);
       execvp(sCommandArgSplit[0], sCommandArgSplit);
       exit(EXIT_FAILURE);
     }
     else
     {
       wait(NULL);
-      close(p[1]);
-      // fd_in = p[0]; //save the input for the next command
+//      close(p[1]);
+//      fd_in = p[0]; //save the input for the next command
     }
   }
 
+}
+
+void read_all_multiple(int src, int p0, int p1) {
+  char buf[BUFSIZ];
+  ssize_t bytes_read, bytes_written, w1, w2;
+  while((bytes_read = read(src, buf, BUFSIZ)) > 0) {
+    bytes_written = 0;
+    while(bytes_written < bytes_read) {
+        w1 = write(p0,
+        buf + bytes_written,
+        bytes_read - bytes_written);
+        
+        w2 = write(p1,
+        buf + bytes_written,
+        bytes_read - bytes_written);
+        
+        bytes_written += w1;
+    }
+  }
 }
 
 void read_all(int src, int dst) {
