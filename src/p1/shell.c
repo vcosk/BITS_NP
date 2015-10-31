@@ -1,4 +1,5 @@
 #include "tlpi_hdr.h"
+#include <fcntl.h>
 
 #define  MAX_COMMAND_STRING_SIZE 256
 #define BUF_SIZE 10
@@ -10,7 +11,7 @@
 void trim(char *);
 int split (const char*, char, char***);
 void executeCommandOnePipe(char**, int[]);
-void loop_pipe(char *);
+void loop_pipe(char *, int, int*);
 void copy_to_multiple_pipes(int, int, int[]);
 void read_all(int, int);
 
@@ -30,14 +31,51 @@ int main(int argc, char *argv[]) {
       //If text is entered.
       if(strlen(sCommand) > 0) {
         trim(sCommand);
-        loop_pipe(sCommand);
+
+        int *fd;
+        //0 - No file IO
+        //1 - Input from file
+        //2 - Output to file
+        int iFileStatus = 0;
+        char **sFileDataExtract;
+        int iInputFile = split(sCommand, '<', &sFileDataExtract);
+        if(2 == iInputFile)  {
+          printf("Read\n");
+          trim(sFileDataExtract[0]);
+          strcpy(sCommand, sFileDataExtract[0]);
+          iFileStatus = 1;
+          trim(sFileDataExtract[1]);
+          fd = open(sFileDataExtract[1], O_RDONLY);
+        }
+        else{
+          int iOutputFile = split(sCommand, '>', &sFileDataExtract);
+          printf("iOutputFile: %d\n", iOutputFile);
+          if(iOutputFile > 1)  {
+            trim(sFileDataExtract[0]);
+            strcpy(sCommand, sFileDataExtract[0]);
+            iFileStatus = 2;
+            int index;
+            if(iOutputFile == 3) {
+              printf("Append\n");
+              trim(sFileDataExtract[2]);
+              fd = open(sFileDataExtract[2], O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+            }
+            else {
+              printf("Write\n");
+              trim(sFileDataExtract[1]);
+              fd = open(sFileDataExtract[1], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+            }
+          }
+        }
+
+        loop_pipe(sCommand, iFileStatus, fd);
       }
     }
   }
   return 0;
 }
 
-void  loop_pipe(char *sCommand)
+void  loop_pipe(char *sCommand, int iFileStatus, int *fd)
 {
 
   trim(sCommand);
@@ -70,6 +108,9 @@ void  loop_pipe(char *sCommand)
   pid_t pid;
   int   fd_in = 0;
 
+  if(1 == iFileStatus) {
+    fd_in = fd;
+  }
   for(int iPipeIndex=0; iPipeIndex < iPipeSplitSize; iPipeIndex++) {
     int bLastCommand = (iPipeIndex+1) == iPipeSplitSize?TRUE:FALSE;
     char **sCommandArgSplit = NULL;
@@ -86,6 +127,9 @@ void  loop_pipe(char *sCommand)
       if (!bLastCommand || iRedirectCount > 0) {
         dup2(p[1], 1);
       }
+      if(bLastCommand && 2 == iFileStatus) {
+        dup2(fd, 1);
+      }
       close(p[0]);
       execvp(sCommandArgSplit[0], sCommandArgSplit);
       exit(EXIT_FAILURE);
@@ -97,34 +141,39 @@ void  loop_pipe(char *sCommand)
       fd_in = p[0]; //save the input for the next command
     }
   }
- 
+  if(1 == iFileStatus || 2 == iFileStatus) {
+    close(fd);
+    return;
+  }
+
+
   int iPipeCount = iRedirectCommandCount;
   int paPipeArray[iPipeCount][2];
-  
+
   for(int iPipeIndex=0; iPipeIndex<iPipeCount; iPipeIndex++) {
     pipe(paPipeArray[iPipeIndex]);
   }
-  
+
   int paPipeOutput[iPipeCount];
-  
+
   for(int iPipeIndex=0; iPipeIndex<iPipeCount; iPipeIndex++) {
     paPipeOutput[iPipeIndex] = paPipeArray[iPipeIndex][1];
   }
-  
+
   copy_to_multiple_pipes(fd_in, iPipeCount, paPipeOutput);
-  
+
   for(int iPipeIndex=0; iPipeIndex<iPipeCount; iPipeIndex++) {
     close(paPipeArray[iPipeIndex][1]);
   }
 
-  
+
   for(int iRedirectCommandIndex=0; iRedirectCommandIndex < iRedirectCommandCount; iRedirectCommandIndex++) {
     char **sCommandArgSplit = NULL;
     trim(sRedirctCommands[iRedirectCommandIndex]);
-    
+
     printf("Command #%d: %s\n", iRedirectCommandIndex, sRedirctCommands[iRedirectCommandIndex]);
-    
-    int iArgSplitSize = split(sRedirctCommands[iRedirectCommandIndex], ' ', &sCommandArgSplit);    
+
+    int iArgSplitSize = split(sRedirctCommands[iRedirectCommandIndex], ' ', &sCommandArgSplit);
 
     if ((pid = fork()) == -1)
     {
@@ -146,7 +195,7 @@ void  loop_pipe(char *sCommand)
 
 void copy_to_multiple_pipes(int src, int iNumOfDestPipes, int paPipeOutput[]) {
     printf("copy_to_multiple_pipes: %d\n", iNumOfDestPipes);
- 
+
     char buf[BUFSIZ];
     ssize_t bytes_read, bytes_written, w;
     while((bytes_read = read(src, buf, BUFSIZ)) > 0) {
