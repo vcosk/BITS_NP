@@ -14,6 +14,6 @@ clean :
 showall :
 	@ echo ${EXE}
 shell_test: shell_test.o
-		${CC} -o $@ shell_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
+		${CC} -w -o -g $@ shell_test.o ${CFLAGS} ${LDLIBS} ${LINUX_LIBRT}
 
 ${EXE} : ${LPLIB}		# True as a rough approximation
